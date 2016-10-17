@@ -80,7 +80,7 @@ int main(int argc,char* argv[])
   //=====initial pi=======//
   pi = new double[SSIZE];
   for(int i=0;i<SSIZE;i++)
-      pi[i] = log(1/SSIZE);
+      pi[i] = -log(SSIZE);
 
  //======EM Algorithm======//
  int iterNum = 1;
@@ -88,7 +88,7 @@ int main(int argc,char* argv[])
     EM(pi,EncodeCk,encode,bigram,textInt);
 
  //=====output testing===//
- /*
+ 
  cout<<"pi:"<<endl;
  for(int i=0;i<SSIZE;i++)
     cout<<pi[i]<<" ";
@@ -113,7 +113,7 @@ for(int i=0;i<SSIZE;i++)
   }
   cout<<endl;
 }
-*/
+
   
   //===delete pointer====//
   for(int i=0;i<SSIZE;i++)
@@ -125,6 +125,7 @@ for(int i=0;i<SSIZE;i++)
   delete[] EncodeCk;
   delete[] encode;
   delete[] bigram;
+  delete[] pi;
 
       return 0;
    
@@ -234,7 +235,7 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
         if(EncodeCk[i][j]){
            newLine.push_back(j);
 	   }
-  }
+     }
      encodeIdx.push_back(newLine);
   }
 
@@ -245,11 +246,12 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
   vector<int>::iterator it;
   vector<int>::iterator itIdx1;
   vector<int>::iterator itIdx2;
-  for(it = textInt.begin();it!=textInt.end()-1;it++)
+  for(it = textInt.begin()+1;it!=textInt.end();it++)
   {
-     for(itIdx1 = encodeIdx[*it].begin();itIdx1!=encodeIdx[*it].end();itIdx1++)
+     //cout<<*it<<" ";
+     for(itIdx1 = encodeIdx[*(it-1)].begin();itIdx1!=encodeIdx[*(it-1)].end();itIdx1++)
      {
-        for(itIdx2 = encodeIdx[*(it+1)].begin();itIdx2!=encodeIdx[*(it+1)].end();itIdx2++)
+        for(itIdx2 = encodeIdx[*(it)].begin();itIdx2!=encodeIdx[*(it)].end();itIdx2++)
         {
             vote[*itIdx1][*itIdx2]++;  
         }
@@ -317,13 +319,17 @@ void Prop(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vec
 	    for(int k=0;k<SSIZE;k++)
 	    {
 	      if(ck)
-	       tempSum = sumlog(tempSum,Map[k][i-step]+bigram[j][k] + encode[textInt[i]][j]);
+	       tempSum = sumlog(tempSum,Map[k][i-step] + bigram[j][k] + encode[textInt[i-step]][k]);
 	       else
-	       tempSum = sumlog(tempSum,Map[k][i-step]+bigram[k][j] + encode[textInt[i]][j]);
+	       {
+	       tempSum = sumlog(tempSum,Map[k][i-step] + bigram[k][j] + encode[textInt[i]][j]);
+	       }
 	    }
 	    Map[j][i] = tempSum;
+	   // cout<<"("<<j<<","<<i<<")"<<Map[j][i];
 	 }
       }
+      //cout<<endl;
    }
 
 }
@@ -342,7 +348,14 @@ double sumlog(double p1,double p2)
       if(p2>0)
          return p1;
       else
-         return p1 + log(1+exp(p2-p1));
+         {
+	   if(p1-p2>2)
+	     return p1;
+	   else if(p2-p1>2)
+	     return p2;
+	   else
+             return p1 + log(1+exp(p2-p1));
+	 }
    }
 }
 //EM
@@ -357,12 +370,15 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   backMap = new double*[SSIZE];
   for(int i=0;i<SSIZE;i++)
   {
-     forMap[i] = new double[SSIZE];
-     backMap[i] = new double[SSIZE];
+     forMap[i] = new double[textInt.size()];
+     backMap[i] = new double[textInt.size()];
   }
   //update forward and backward map
   Prop(forMap,pi,EncodeCk,encode,bigram,textInt,0);
   Prop(backMap,pi,EncodeCk,encode,bigram,textInt,1);
+  
+
+  
   //upadte gama
   for(int i=0;i<textInt.size();i++)
   {
@@ -476,6 +492,7 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
       encode[j][i] = ZERO;
     }
  }
+ 
   
   //delete
   for(int i=0;i<SSIZE;i++)
