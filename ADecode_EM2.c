@@ -59,17 +59,8 @@ int main(int argc,char* argv[])
       encode[i] = new double[SSIZE];
    }
    initEncode(argv[1],EncodeCk,encode);
-   /*
-   for(int i=0;i<SSIZE;i++)
-   {
-     for(int j=0;j<SSIZE;j++)
-     {
-        cout<<encode[i][j]<<" ";
-     }
-     cout<<endl;
-   }
-   */
-  //==initialize bigram table==//
+  
+   //==initialize bigram table==//
    bigram = new double*[SSIZE];
    for(int i=0;i<SSIZE;i++)
    {
@@ -83,12 +74,24 @@ int main(int argc,char* argv[])
       pi[i] = -log(SSIZE);
 
  //======EM Algorithm======//
+ /*
+ forMap = new double*[SSIZE];
+ backMap = new double*[SSIZE];
+ for(int i=0;i<SSIZE;i++)
+ {
+    forMap[i] = new double[textInt.size()];
+    backMap[i] = new double[textInt.size()];
+ }
+*/
  int iterNum = 1;
  for(int i=0;i<iterNum;i++)
-    EM(pi,EncodeCk,encode,bigram,textInt);
+ {
 
- //=====output testing===//
+    EM(pi,EncodeCk,encode,bigram,textInt);
  
+ }
+ //=====output testing===//
+ /*
  cout<<"pi:"<<endl;
  for(int i=0;i<SSIZE;i++)
     cout<<pi[i]<<" ";
@@ -113,7 +116,7 @@ for(int i=0;i<SSIZE;i++)
   }
   cout<<endl;
 }
-
+*/
   
   //===delete pointer====//
   for(int i=0;i<SSIZE;i++)
@@ -122,12 +125,18 @@ for(int i=0;i<SSIZE;i++)
      delete[] encode[i];
      delete[] bigram[i];
   }
+
   delete[] EncodeCk;
   delete[] encode;
   delete[] bigram;
   delete[] pi;
+  EncodeCk = NULL;
+  encode = NULL;
+  bigram = NULL;
+  pi = NULL;
 
-      return 0;
+
+  return 0;
    
 }
 
@@ -184,6 +193,14 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
    char buffer[20];
    char split_char = ' ';
    int parser[3];
+   
+   for(int i=0;i<SSIZE;i++)
+   {
+      for(int j=0;j<SSIZE;j++)
+      {
+         EncodeCk[i][j] = false;
+      }
+   }
 
    file.open(fileName,ios::in);
    if(!file)
@@ -199,7 +216,7 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
 	for(string each;getline(str,each,split_char);counter++)
 	    parser[counter] = c2n(each);
 
-	EncodeCk[parser[1]][parser[0]] = bool(parser[2]);	
+	EncodeCk[parser[1]][parser[0]] = static_cast <bool>(parser[2]);	
      }//finish update EncodeCk
    
      //update encode
@@ -216,7 +233,7 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
         if(!EncodeCk[j][i])
            encode[j][i] = ZERO;
         else
-           encode[j][i] = log(1/denominator[i]);
+           encode[j][i] = -log(denominator[i]);
         }
      }
    }
@@ -224,7 +241,8 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
 
 void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
 {
-  //parse EncodeCk to a hash 
+  //parse EncodeCk to a hash
+  /*
   vector<vector<int> > encodeIdx;
 
   for(int i=0;i<SSIZE;i++)
@@ -238,23 +256,37 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
      }
      encodeIdx.push_back(newLine);
   }
-
+*/
   //use text to vote for initial bigram
   double vote[SSIZE][SSIZE];
-  memset(vote,0,sizeof(vote));
-
-  vector<int>::iterator it;
-  vector<int>::iterator itIdx1;
-  vector<int>::iterator itIdx2;
-  for(it = textInt.begin()+1;it!=textInt.end();it++)
+  //memset(vote,0,sizeof(vote));
+  for(int i=0;i<SSIZE;i++)
   {
-     //cout<<*it<<" ";
-     for(itIdx1 = encodeIdx[*(it-1)].begin();itIdx1!=encodeIdx[*(it-1)].end();itIdx1++)
+     for(int j=0;j<SSIZE;j++)
      {
-        for(itIdx2 = encodeIdx[*(it)].begin();itIdx2!=encodeIdx[*(it)].end();itIdx2++)
-        {
-            vote[*itIdx1][*itIdx2]++;  
-        }
+        vote[i][j] =0;
+     }
+  }
+
+  //vector<int>::iterator it;
+  //vector<int>::iterator itIdx1;
+  //vector<int>::iterator itIdx2;
+  //for(it = textInt.begin()+1;it!=textInt.end();it++)
+ cout<<textInt.size();
+ 
+ for(int i=1;i<textInt.size();i++)
+  {
+  //cout<<textInt[i]<<" ";
+     for(int j=0;j<SSIZE;j++)
+     {
+        if(EncodeCk[textInt[i]][j])
+	{
+          for(int k=0;k<SSIZE;k++)
+	  {
+	      if(EncodeCk[textInt[i]][k])
+                 vote[j][k]++;  
+          }
+	}
       }
    }
 
@@ -277,6 +309,7 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
       }
       //cout<<endl;
    }
+
 }
 
 //forward & backwark propagate
@@ -364,7 +397,7 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   double**forMap;
   double**backMap;
   double gamma[SSIZE][textInt.size()];
-  double epsilon[SSIZE][SSIZE][textInt.size()-1];
+  //double epsilon[SSIZE][SSIZE][textInt.size()-1];
 
   forMap = new double*[SSIZE];
   backMap = new double*[SSIZE];
@@ -373,12 +406,13 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
      forMap[i] = new double[textInt.size()];
      backMap[i] = new double[textInt.size()];
   }
+  
   //update forward and backward map
   Prop(forMap,pi,EncodeCk,encode,bigram,textInt,0);
   Prop(backMap,pi,EncodeCk,encode,bigram,textInt,1);
   
 
-  
+/*  
   //upadte gama
   for(int i=0;i<textInt.size();i++)
   {
@@ -493,8 +527,10 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
     }
  }
  
+*/ 
   
   //delete
+  
   for(int i=0;i<SSIZE;i++)
   {
      delete[] forMap[i];
@@ -502,4 +538,7 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   }
   delete[] forMap;
   delete[] backMap;
+  forMap =NULL;
+  backMap =NULL;
+
 }
