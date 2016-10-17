@@ -114,7 +114,6 @@ for(int i=0;i<SSIZE;i++)
   cout<<endl;
 }
 */
-cout<<"temp";
   
   //===delete pointer====//
   for(int i=0;i<SSIZE;i++)
