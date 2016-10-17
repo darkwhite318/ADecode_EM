@@ -318,6 +318,9 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
 {
   double**forMap;
   double**backMap;
+  double gamma[SSIZE][textInt.size()];
+  double epsilon[SSIZE][SSIZE][textInt.size()-1];
+
   forMap = new double*[SSIZE];
   backMap = new double*[SSIZE];
   for(int i=0;i<SSIZE;i++)
@@ -326,9 +329,111 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
      backMap[i] = new double[SSIZE];
   }
   //update forward and backward map
-  Prop();
-  Prop();
-
+  Prop(forMap,pi,EncodeCk,encode,bigram,textInt,0);
+  Prop(backMap,pi,EncodeCk,encode,bigram,textInt,1);
+  //upadte gama
+  for(int i=0;i<textInt.size();i++)
+  {
+     double sum = ZERO;
+     for(int j=0;j<SSIZE;j++)
+     {
+        if(forMap[j][i]<=0 && backMap[j][i]<=0)
+	{
+           gamma[j][i] = forMap[j][i] + backMap[j][i];//log(forMap*backMap)
+	   sum = sumlog(sum, forMap[j][i] + backMap[j][i]); 
+        }
+	else
+	   gamma[j][i] = ZERO;
+     }
+     for(int j=0;j<SSIZE;j++)
+     {
+        if(gamma[j][i]<=0)//non-ZERO
+           gamma[j][i] = gamma[j][i] - sum;//log(gamma/sum)
+     }
+  }
+  //update epsilon
+  for(int i=1;i<textInt.size();i++)//i start from 1
+  {  
+     double deno =ZERO;
+     for(int j=0;j<SSIZE;j++)
+     {
+        for(int k=0;k<SSIZE;k++)
+	{
+	   if(forMap[j][i-1]<=0 && bigram[j][k]<=0 && encode[textInt[i]][k]<=0 && backMap[k][i]<=0)
+	   {   
+	      epsilon[j][k][i] = forMap[j][i-1] + bigram[j][k] + encode[textInt[i]][k] + backMap[k][i];
+	      deno = sumlog(deno,epsilon[j][k][i]);
+	   }
+	   else
+	      epsilon[j][k][i] = ZERO;
+	}
+     }
+     for(int j=0;j<SSIZE;j++)
+     {
+        for(int k=0;k<SSIZE;k++)
+	{	
+	   if(epsilon[j][k][i]<=0)//non-ZERO
+	     epsilon[j][k][i] = epsilon[j][k][i] - deno;
+	}
+     }
+  }
+  //update gama sum
+  double gammaSum[SSIZE];
+  memset(gammSum,ZERO,sizeof(gammaSum));
+  for(int i=0;i<SSIZE;i++)
+  {
+     for(int j=0;j<textInt.size();j++)
+     {
+        if(gamma[i][j]<=0)
+           gammaSum[i] = logsum(gammaSum[i],gamma[i][j]);
+     }
+  }
+  //update epsilon sum
+  double epsilonSum[SSIZE][SSIZE];
+  memset(epsilonSum,ZERO,sizeof(epsilonSum));
+  for(int i=0;i<SSIZE;i++)
+  {
+     for(int j=0;j<SSIZE;j++)
+     {
+        for(int k=0;k<textInt.size();k++)
+	{
+	   if(epsilon[i][j][k]<=0)
+	     epsilonSum[i][j] = logsum(epsilonSum[i][j],epsilon[i][j][k]);
+	}
+     }
+  }
+  //re update pi
+  for(int i=0;i<SSIZE;i++)
+  {
+     if(gammaSum[i]<=0)
+       pi[i] = gammaSum[i]-log(textInt.size());
+     else
+       pi[i] = ZERO;
+  
+  }
+  //re update bigram
+  for(int i=0;i<SSIZE;i++)
+  {
+     for(int j=0;j<SSIZE;j++)
+     {
+        if(epsilonSum[i][j]<=0 && gammSum[i]<=0)
+	  bigram[i][j] = epsilonSum[i][j]-gammaSum[i];
+	else
+	  bigram[i][j] = ZERO;
+     }
+  }
+  //re update encode
+  double gammaO[SSIZE][SSIZE];
+  memset(gammaO,ZERO,sizeof(gammaO));
+  for(int i=0;i<textInt.size();i++)
+  {
+     for(int j=0;j<SSIZE;j++)
+     {
+        if(gamma[j][i]<=0)
+	  gammaO[textInt[i]][j]=sumlog(gammaO[textInt[i]][j],gamma[j][i]);
+     }
+  }
+  //delete
   for(int i=0;i<SSIZE;i++)
   {
      delete[] forMap[i];
