@@ -80,15 +80,40 @@ int main(int argc,char* argv[])
   //=====initial pi=======//
   pi = new double[SSIZE];
   for(int i=0;i<SSIZE;i++)
-      pi[i] = 0;
+      pi[i] = log(1/SSIZE);
 
  //======EM Algorithm======//
- int iterNum = 5;
+ int iterNum = 1;
  for(int i=0;i<iterNum;i++)
     EM(pi,EncodeCk,encode,bigram,textInt);
 
+ //=====output testing===//
+ /*
+ cout<<"pi:"<<endl;
+ for(int i=0;i<SSIZE;i++)
+    cout<<pi[i]<<" ";
 
-
+ cout<<endl;
+ cout<<"encode:"<<endl;
+ for(int i=0;i<SSIZE;i++)
+ {
+    for(int j=0;j<SSIZE;j++)
+    {
+       cout<<encode[i][j]<<" ";
+    }
+    cout<<endl;
+ }
+cout<<endl;
+cout<<"bigram:"<<endl;
+for(int i=0;i<SSIZE;i++)
+{
+  for(int j=0;j<SSIZE;j++)
+  {
+     cout<<bigram[i][j]<<" ";
+  }
+  cout<<endl;
+}
+*/
   
   //===delete pointer====//
   for(int i=0;i<SSIZE;i++)
@@ -209,7 +234,7 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
         if(EncodeCk[i][j]){
            newLine.push_back(j);
 	   }
-     }
+  }
      encodeIdx.push_back(newLine);
   }
 
