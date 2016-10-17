@@ -20,6 +20,7 @@ void initEncode(char*,bool**,double**);
 void initBigram(double**,bool**,vector<int>(&));
 void Prop(double**,double*,bool**,double**,double**,vector<int>(&),bool);
 double sumlog(double,double);
+void EM(double*,bool**,double**,double**,vector<int>(&));
 
 int SSIZE;
 const double ZERO = 10;//assignde a possitive number as the sybol of log(0)
@@ -77,11 +78,17 @@ int main(int argc,char* argv[])
    initBigram(bigram,EncodeCk,textInt);
   
   //=====initial pi=======//
-  pi = new double[SSiZE];
+  pi = new double[SSIZE];
   for(int i=0;i<SSIZE;i++)
       pi[i] = 0;
 
-  
+ //======EM Algorithm======//
+ int iterNum = 5;
+ for(int i=0;i<iterNum;i++)
+    EM(pi,EncodeCk,encode,bigram,textInt);
+
+
+
   
   //===delete pointer====//
   for(int i=0;i<SSIZE;i++)
@@ -285,9 +292,9 @@ void Prop(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vec
 	    for(int k=0;k<SSIZE;k++)
 	    {
 	      if(ck)
-	       tempSum = sumlog(tempSum,Map[k][i-step]+bigram[j][k]+Encode[textInt[i]][j]);
+	       tempSum = sumlog(tempSum,Map[k][i-step]+bigram[j][k] + encode[textInt[i]][j]);
 	       else
-	       tempSum = sumlog(tempSum,Map[k][i-step]+bigram[k][j]+Encode[textInt[i]][j]);
+	       tempSum = sumlog(tempSum,Map[k][i-step]+bigram[k][j] + encode[textInt[i]][j]);
 	    }
 	    Map[j][i] = tempSum;
 	 }
@@ -379,13 +386,13 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   }
   //update gama sum
   double gammaSum[SSIZE];
-  memset(gammSum,ZERO,sizeof(gammaSum));
+  memset(gammaSum,ZERO,sizeof(gammaSum));
   for(int i=0;i<SSIZE;i++)
   {
      for(int j=0;j<textInt.size();j++)
      {
         if(gamma[i][j]<=0)
-           gammaSum[i] = logsum(gammaSum[i],gamma[i][j]);
+           gammaSum[i] = sumlog(gammaSum[i],gamma[i][j]);
      }
   }
   //update epsilon sum
@@ -398,7 +405,7 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
         for(int k=0;k<textInt.size();k++)
 	{
 	   if(epsilon[i][j][k]<=0)
-	     epsilonSum[i][j] = logsum(epsilonSum[i][j],epsilon[i][j][k]);
+	     epsilonSum[i][j] = sumlog(epsilonSum[i][j],epsilon[i][j][k]);
 	}
      }
   }
@@ -416,7 +423,7 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   {
      for(int j=0;j<SSIZE;j++)
      {
-        if(epsilonSum[i][j]<=0 && gammSum[i]<=0)
+        if(epsilonSum[i][j]<=0 && gammaSum[i]<=0)
 	  bigram[i][j] = epsilonSum[i][j]-gammaSum[i];
 	else
 	  bigram[i][j] = ZERO;
@@ -433,6 +440,18 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
 	  gammaO[textInt[i]][j]=sumlog(gammaO[textInt[i]][j],gamma[j][i]);
      }
   }
+
+ for(int i=0;i<SSIZE;i++)
+ {
+    for(int j=0;j<SSIZE;j++)
+    {
+    if(gammaO[j][i]<=0 && gammaSum[i]<=0)
+      encode[j][i] = gammaO[j][i]-gammaSum[i];
+    else
+      encode[j][i] = ZERO;
+    }
+ }
+  
   //delete
   for(int i=0;i<SSIZE;i++)
   {
