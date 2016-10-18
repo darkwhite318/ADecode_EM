@@ -305,9 +305,9 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
 	  bigram[i][j] = ZERO;
 	else
 	  bigram[i][j] = log(vote[i][j]/deno[i]);
-	//cout<<bigram[i][j]<<" ";
+	cout<<bigram[i][j]<<" ";
       }
-      //cout<<endl;
+      cout<<endl;
    }
 
 }
@@ -359,10 +359,10 @@ void Prop(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vec
 	       }
 	    }
 	    Map[j][i] = tempSum;
-	   // cout<<"("<<j<<","<<i<<")"<<Map[j][i];
+	//    cout<<"("<<j<<","<<i<<")"<<Map[j][i];
 	 }
       }
-      //cout<<endl;
+  //    cout<<endl;
    }
 
 }
@@ -410,9 +410,9 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   //update forward and backward map
   Prop(forMap,pi,EncodeCk,encode,bigram,textInt,0);
   Prop(backMap,pi,EncodeCk,encode,bigram,textInt,1);
-  
+  /*
 
-/*  
+  
   //upadte gama
   for(int i=0;i<textInt.size();i++)
   {
@@ -433,9 +433,14 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
            gamma[j][i] = gamma[j][i] - sum;//log(gamma/sum)
      }
   }
-  //update epsilon
+  //update epsilon sum
+  double epsilonSum[SSIZE][SSIZE];
+  memset(epsilonSum,ZERO,sizeof(epsilonSum));
+  double epsilonTemp[SSIZE][SSIZE];
+
   for(int i=1;i<textInt.size();i++)//i start from 1
-  {  
+  { 
+  memset(epsilonTemp,0,sizeof(epsilonTemp));
      double deno =ZERO;
      for(int j=0;j<SSIZE;j++)
      {
@@ -443,19 +448,22 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
 	{
 	   if(forMap[j][i-1]<=0 && bigram[j][k]<=0 && encode[textInt[i]][k]<=0 && backMap[k][i]<=0)
 	   {   
-	      epsilon[j][k][i] = forMap[j][i-1] + bigram[j][k] + encode[textInt[i]][k] + backMap[k][i];
-	      deno = sumlog(deno,epsilon[j][k][i]);
+	      epsilonTemp[j][k] = forMap[j][i-1] + bigram[j][k] + encode[textInt[i]][k] + backMap[k][i];
+	      deno = sumlog(deno,epsilonTemp[j][k]);
 	   }
 	   else
-	      epsilon[j][k][i] = ZERO;
+	      epsilonTemp[j][k] = ZERO;
 	}
      }
      for(int j=0;j<SSIZE;j++)
      {
         for(int k=0;k<SSIZE;k++)
 	{	
-	   if(epsilon[j][k][i]<=0)//non-ZERO
-	     epsilon[j][k][i] = epsilon[j][k][i] - deno;
+	   if(epsilonTemp[j][k]<=0)//non-ZERO
+	   {
+	     epsilonTemp[j][k] = epsilonTemp[j][k] - deno;
+	     epsilonSum[j][k] = sumlog(epsilonSum[j][k],epsilonTemp[j][k]);
+	   }
 	}
      }
   }
@@ -470,7 +478,9 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
            gammaSum[i] = sumlog(gammaSum[i],gamma[i][j]);
      }
   }
+*/
   //update epsilon sum
+  /*
   double epsilonSum[SSIZE][SSIZE];
   memset(epsilonSum,ZERO,sizeof(epsilonSum));
   for(int i=0;i<SSIZE;i++)
@@ -484,6 +494,8 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
 	}
      }
   }
+*/
+/*
   //re update pi
   for(int i=0;i<SSIZE;i++)
   {
@@ -527,8 +539,8 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
     }
  }
  
-*/ 
-  
+ 
+  */
   //delete
   
   for(int i=0;i<SSIZE;i++)
