@@ -18,7 +18,8 @@ int c2n(string);
 int calcSSIZE(char*);
 void initEncode(char*,bool**,double**);
 void initBigram(double**,bool**,vector<int>(&));
-void Prop(double**,double*,bool**,double**,double**,vector<int>(&),bool);
+void forProp(double**,double*,bool**,double**,double**,vector<int>(&));
+void backProp(double**,double*,bool**,double**,double**,vector<int>(&));
 double sumlog(double,double);
 void EM(double*,bool**,double**,double**,vector<int>(&));
 
@@ -96,7 +97,7 @@ int main(int argc,char* argv[])
  
  }
  //=====output testing===//
-/* 
+/*
  cout<<"pi:"<<endl;
  for(int i=0;i<SSIZE;i++)
     cout<<pi[i]<<" ";
@@ -235,13 +236,19 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
         }
         for(int j=0;j<SSIZE;j++)
         {
-        if(!EncodeCk[j][i])
-           encode[j][i] = ZERO;
-        else
-           encode[j][i] = -log(denominator[i]);
-        //cout<<encode[j][i]<<" ";
+           if(!EncodeCk[j][i])
+ 	   {
+              encode[j][i] = ZERO;
+              cout<<"0"<<" ";
+	   }
+           else
+	   {
+	      cout<<"1"<<" ";
+              encode[j][i] = -log(denominator[i]);
+           }
+	//cout<<encode[j][i]<<" ";
 	}
-	//cout<<endl;
+	cout<<endl;
      }
    }
 }
@@ -301,39 +308,23 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
 //forward & backwark propagate
 //forward:ck = 0; pi = initial state prob
 //backward:ck =1; pi = a vector of 0.
-void Prop(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt),bool ck)
+void forProp(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
 {
 
 //initialize
-   int start,end,step;
-   if(ck)//backward propagate
-   {
-      for(int i=0;i<SSIZE;i++)
-      {   
-         
-	 Map[i][textInt.size()-1] = 0;//log(1)
-      }
-      //cout<<"tsize:"<<textInt.size()-1<<endl;
-      start =textInt.size()-2;
-      end = -1;
-      step = -1;
-   }
-   else//forward propagate
-   {
+
        for(int i=0;i<SSIZE;i++){
           if(encode[textInt[0]][i]<=0)
-	    Map[i][0] = pi[i] + encode[textInt[0]][i];
+	    Map[i][0] = encode[textInt[0]][i];
+	    //Map[i][0] = pi[i] + encode[textInt[0]][i];
+	    
 	  else
 	    Map[i][0] = ZERO;
 	  }
-       start = 1;
-       end = textInt.size();
-       step = 1;
-   }
 
-double beta;
+double alpha;
 //update map
-   for(int i=start;i!=end;i+=step)
+   for(int i=1;i<textInt.size();i++)
    {
       for(int j=0;j<SSIZE;j++)
       {
@@ -345,22 +336,15 @@ double beta;
 	    for(int k=0;k<SSIZE;k++)
 	    
             {
-	       if(ck)
-	       {
-	          beta = Map[k][i-step] + bigram[j][k] + encode[textInt[i-step]][k];
-	          if(Map[k][i-step]>0 || bigram[j][k]>0 || encode[textInt[i-step]][k]>0)
-		    beta = ZERO;
-		  tempSum = sumlog(tempSum,beta);
-	       } 
-	       else
-	       {
-		   beta = Map[k][i-step] + bigram[k][j] + encode[textInt[i]][j];
-		   if(Map[k][i-step]>0||bigram[k][j]>0||encode[textInt[i]][j]>0)
-		     beta = ZERO;
-	           tempSum = sumlog(tempSum,beta);
-	       }
+	         alpha = Map[k][i-1] + bigram[k][j];
+		 if(Map[k][i-1]>0||bigram[k][j]>0)
+		    alpha = ZERO;
+	          tempSum = sumlog(tempSum,alpha);
 	   }
-	   Map[j][i] = tempSum;
+	   if(tempSum>0)
+	      Map[j][i] = ZERO;
+	   else
+	   Map[j][i] = tempSum + encode[textInt[i]][j];
 	    //cout<<"("<<j<<","<<i<<")"<<Map[j][i];
 	 }
       }
@@ -368,6 +352,49 @@ double beta;
    }
 
 }
+
+
+void backProp(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
+{//not yet done
+
+//initialize
+      for(int i=0;i<SSIZE;i++)
+      {   
+	 Map[i][textInt.size()-1] = 0;//log(1)
+      }
+      //cout<<"tsize:"<<textInt.size()-1<<endl;
+
+double beta;
+//update map
+   for(int i=textInt.size()-2;i>=0;i--)
+   {
+      for(int j=0;j<SSIZE;j++)
+      {
+         if(!EncodeCk[textInt[i]][j])
+	   Map[j][i] = ZERO;
+	 else
+	 {
+	    double tempSum = ZERO;
+	    for(int k=0;k<SSIZE;k++)
+	    
+            {
+	       beta = Map[k][i+1] + bigram[j][k] + encode[textInt[i+1]][k];
+	       if(Map[k][i+1]>0 || bigram[j][k]>0 || encode[textInt[i+1]][k]>0)
+		  beta = ZERO;
+	        tempSum = sumlog(tempSum,beta);
+	   }
+	   if(tempSum>0)
+	      Map[j][i] = ZERO;
+	   else
+	   Map[j][i] = tempSum;
+	 //   cout<<"("<<j<<","<<i<<")"<<Map[j][i];
+	 }
+      }
+      //cout<<endl;
+   }
+
+}
+
 //calculate log(x1+x2) given p1 = log(x1),p2 = log(x2)
 double sumlog(double p1,double p2)
 {
@@ -384,15 +411,16 @@ double sumlog(double p1,double p2)
          return p1;
       else
          {
-	 if(p1-p2>4)
+	 if(p1/p2 > 100)//test if this criteria rail
 	     return p1;
-	 else if(p2-p1>4)
+	 else if(p2/p1 > 100)
 	     return p2;
 	 else
 	 {
-	 if((p1 + log(1+exp(p2-p1)))>0)
-	    cout<<"("<<p1<<","<<p2<<")";
+	 //if((p1 + log(1+exp(p2-p1)))>0)
+	 //   cout<<"("<<p1<<","<<p2<<")";
          return p1 + log(1+exp(p2-p1));
+	 //return log(exp(p1)+exp(p2));
 	 }
 	 }
    }
@@ -420,8 +448,8 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   //   cout<<*iter<<" ";
 
   //update forward and backward map
-  Prop(forMap,pi,EncodeCk,encode,bigram,textInt,0);//garentee no element bigger than 0 except ZERO
-  Prop(backMap,pi,EncodeCk,encode,bigram,textInt,1);//garentee no element bigger than 0 except ZERO
+  forProp(forMap,pi,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
+  backProp(backMap,pi,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
   
 
  
@@ -442,7 +470,11 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
      for(int j=0;j<SSIZE;j++)
      {
         if(gamma[j][i]<=0)//non-ZERO
+        {
+	//if(gamma[j][i]>=sum)
+          // cout<<"("<<gamma[j][i]<<","<<sum<<")";
            gamma[j][i] = gamma[j][i] - sum;//log(gamma/sum)
+        }   
      }
   }
   
