@@ -18,13 +18,15 @@ int c2n(string);
 int calcSSIZE(char*);
 void initEncode(char*,bool**,double**);
 void initBigram(double**,bool**,vector<int>(&));
-void forProp(double**,double*,bool**,double**,double**,vector<int>(&));
-void backProp(double**,double*,bool**,double**,double**,vector<int>(&));
+void forProp(double**,bool**,double**,double**,vector<int>(&));
+void backProp(double**,bool**,double**,double**,vector<int>(&));
 double sumlog(double,double);
-void EM(double*,bool**,double**,double**,vector<int>(&));
+void EM(bool**,double**,double**,vector<int>(&));
 
 int SSIZE;
-const double ZERO = 10;//assignde a possitive number as the sybol of log(0)
+//const double ZERO = 10;//assigned a possitive number as the sybol of log(0)
+const double ZERO = -1e50;
+const double ZERO_thre = -1e40;
 
 // ./ADecode_EM2 encode.bin test.num out.txt
 int main(int argc,char* argv[])
@@ -35,7 +37,7 @@ int main(int argc,char* argv[])
     bool **EncodeCk;//query an encode table is the prob is 0 or not
     double ** encode;//encode table(change in each iteration)
     double ** bigram;//transition prob table
-    double* pi;//initial state
+    
 
    //=======read in test file=========//
    ifstream textFile;
@@ -73,34 +75,15 @@ int main(int argc,char* argv[])
    }
    initBigram(bigram,EncodeCk,textInt);
   
-  //=====initial pi=======//
-  pi = new double[SSIZE];
-  for(int i=0;i<SSIZE;i++)
-      pi[i] = -log(SSIZE);
-
  //======EM Algorithm======//
- /*
- forMap = new double*[SSIZE];
- backMap = new double*[SSIZE];
- for(int i=0;i<SSIZE;i++)
- {
-    forMap[i] = new double[textInt.size()];
-    backMap[i] = new double[textInt.size()];
- }
-*/
+  int iterNum = 2;
+  for(int i=0;i<iterNum;i++)
+  {
 
- int iterNum = 1;
- for(int i=0;i<iterNum;i++)
- {
-
-    EM(pi,EncodeCk,encode,bigram,textInt);
+    EM(EncodeCk,encode,bigram,textInt);
  
- }
+  }
  //=====output testing===//
-/*
- cout<<"pi:"<<endl;
- for(int i=0;i<SSIZE;i++)
-    cout<<pi[i]<<" ";
 
  cout<<endl;
  cout<<"encode:"<<endl;
@@ -122,7 +105,10 @@ for(int i=0;i<SSIZE;i++)
   }
   cout<<endl;
 }
-*/
+
+  //==Viterbi algorithm==//
+  
+
   
   //===delete pointer====//
   for(int i=0;i<SSIZE;i++)
@@ -135,11 +121,9 @@ for(int i=0;i<SSIZE;i++)
   delete[] EncodeCk;
   delete[] encode;
   delete[] bigram;
-  delete[] pi;
   EncodeCk = NULL;
   encode = NULL;
   bigram = NULL;
-  pi = NULL;
 
 
   return 0;
@@ -177,7 +161,7 @@ int calcSSIZE(char* filename)
   char buffer[20];
   fstream file;
   char split_char = ' ';
-  string tempC;;
+  string tempC;
   int tempNum;
   int maxNum = 0;
   
@@ -237,18 +221,18 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
         for(int j=0;j<SSIZE;j++)
         {
            if(!EncodeCk[j][i])
- 	   {
+ 	        {
               encode[j][i] = ZERO;
-              cout<<"0"<<" ";
-	   }
+              //cout<<"0"<<" ";
+	        }
            else
-	   {
-	      cout<<"1"<<" ";
+	         {
+	     // cout<<"1"<<" ";
               encode[j][i] = -log(denominator[i]);
            }
 	//cout<<encode[j][i]<<" ";
-	}
-	cout<<endl;
+	      }
+	//cout<<endl;
      }
    }
 }
@@ -295,12 +279,12 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
       for(int j=0;j<SSIZE;j++)
       {
         if(!vote[i][j])
-	  bigram[i][j] = ZERO;
-	else
-	  bigram[i][j] = log(vote[i][j]/deno[i]);
-//	cout<<bigram[i][j]<<" ";
+	        bigram[i][j] = ZERO;
+	      else
+	        bigram[i][j] = log(vote[i][j]/deno[i]);
+      //	cout<<bigram[i][j]<<" ";
       }
-//      cout<<endl;
+      //cout<<endl;
    }
 
 }
@@ -308,19 +292,18 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
 //forward & backwark propagate
 //forward:ck = 0; pi = initial state prob
 //backward:ck =1; pi = a vector of 0.
-void forProp(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
+void forProp(double**Map,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
 {
 
 //initialize
 
-       for(int i=0;i<SSIZE;i++){
-          if(encode[textInt[0]][i]<=0)
-	    Map[i][0] = encode[textInt[0]][i];
-	    //Map[i][0] = pi[i] + encode[textInt[0]][i];
-	    
-	  else
-	    Map[i][0] = ZERO;
-	  }
+       for(int i=0;i<SSIZE;i++)
+       {
+          if(encode[textInt[0]][i]>ZERO_thre)
+	           Map[i][0] = encode[textInt[0]][i];	    
+	        else
+	          Map[i][0] = ZERO;
+	    }
 
 double alpha;
 //update map
@@ -329,22 +312,21 @@ double alpha;
       for(int j=0;j<SSIZE;j++)
       {
          if(!EncodeCk[textInt[i]][j])
-	   Map[j][i] = ZERO;
-	 else
-	 {
+	          Map[j][i] = ZERO;
+	    else
+	    {
 	    double tempSum = ZERO;
-	    for(int k=0;k<SSIZE;k++)
-	    
-            {
-	         alpha = Map[k][i-1] + bigram[k][j];
-		 if(Map[k][i-1]>0||bigram[k][j]>0)
-		    alpha = ZERO;
-	          tempSum = sumlog(tempSum,alpha);
+	    for(int k=0;k<SSIZE;k++)	    
+      {
+	       alpha = Map[k][i-1] + bigram[k][j];
+		     if(Map[k][i-1]<ZERO_thre || bigram[k][j]<ZERO_thre)
+		       alpha = ZERO;
+	       tempSum = sumlog(tempSum,alpha);
 	   }
-	   if(tempSum>0)
+	   if(tempSum<ZERO_thre)
 	      Map[j][i] = ZERO;
 	   else
-	   Map[j][i] = tempSum + encode[textInt[i]][j];
+	      Map[j][i] = tempSum + encode[textInt[i]][j];
 	    //cout<<"("<<j<<","<<i<<")"<<Map[j][i];
 	 }
       }
@@ -354,13 +336,13 @@ double alpha;
 }
 
 
-void backProp(double**Map,double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
+void backProp(double**Map,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
 {//not yet done
 
 //initialize
       for(int i=0;i<SSIZE;i++)
       {   
-	 Map[i][textInt.size()-1] = 0;//log(1)
+	       Map[i][textInt.size()-1] = 0;//log(1)
       }
       //cout<<"tsize:"<<textInt.size()-1<<endl;
 
@@ -371,25 +353,24 @@ double beta;
       for(int j=0;j<SSIZE;j++)
       {
          if(!EncodeCk[textInt[i]][j])
-	   Map[j][i] = ZERO;
-	 else
-	 {
-	    double tempSum = ZERO;
-	    for(int k=0;k<SSIZE;k++)
-	    
-            {
-	       beta = Map[k][i+1] + bigram[j][k] + encode[textInt[i+1]][k];
-	       if(Map[k][i+1]>0 || bigram[j][k]>0 || encode[textInt[i+1]][k]>0)
-		  beta = ZERO;
-	        tempSum = sumlog(tempSum,beta);
-	   }
-	   if(tempSum>0)
-	      Map[j][i] = ZERO;
-	   else
-	   Map[j][i] = tempSum;
-	 //   cout<<"("<<j<<","<<i<<")"<<Map[j][i];
-	 }
-      }
+	         Map[j][i] = ZERO;
+	       else
+	       {
+	       double tempSum = ZERO;
+	       for(int k=0;k<SSIZE;k++)	    
+         {
+	          beta = Map[k][i+1] + bigram[j][k] + encode[textInt[i+1]][k];
+	          if(Map[k][i+1]<ZERO_thre || bigram[j][k]<ZERO_thre || encode[textInt[i+1]][k]<ZERO_thre)
+		          beta = ZERO;
+	          tempSum = sumlog(tempSum,beta);
+	       }
+	       if(tempSum<ZERO_thre)
+	         Map[j][i] = ZERO;
+	       else
+	         Map[j][i] = tempSum;
+	    //cout<<"("<<j<<","<<i<<")"<<Map[j][i];
+	      }
+     }
       //cout<<endl;
    }
 
@@ -398,41 +379,40 @@ double beta;
 //calculate log(x1+x2) given p1 = log(x1),p2 = log(x2)
 double sumlog(double p1,double p2)
 {
-   if(p1>0)//ZERO
+   if(p1<ZERO_thre)//ZERO
    {
-     if(p2>0)
+     if(p2<ZERO_thre)
        return ZERO;
      else
        return p2;
    }
-   else//p1<=0
+   else//p1 non-ZERO
    {
-      if(p2>0)
+      if(p2<ZERO_thre)
          return p1;
       else
-         {
-	 if(p1/p2 > 100)//test if this criteria rail
-	     return p1;
-	 else if(p2/p1 > 100)
-	     return p2;
-	 else
-	 {
-	 //if((p1 + log(1+exp(p2-p1)))>0)
-	 //   cout<<"("<<p1<<","<<p2<<")";
-         return p1 + log(1+exp(p2-p1));
-	 //return log(exp(p1)+exp(p2));
-	 }
-	 }
+     {
+	      if(p1-p2 > 4)//test if this criteria rail
+	        return p1;
+	      else if(p2-p1 > 4)
+	        return p2;
+	      else
+	      {
+	        //if((p1 + log(1+exp(p2-p1)))>0)
+	        //cout<<"("<<p1<<","<<p2<<")";
+          return p1 + log(1+exp(p2-p1));
+	       //return log(exp(p1)+exp(p2));
+	      }
+	   }
    }
 }
 //EM
 
-void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
+void EM(bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
 {
   double**forMap;
   double**backMap;
-  double gamma[SSIZE][textInt.size()];
-  //double epsilon[SSIZE][SSIZE][textInt.size()-1];
+  //double gamma[SSIZE][textInt.size()];
 
   forMap = new double*[SSIZE];
   backMap = new double*[SSIZE];
@@ -448,135 +428,140 @@ void EM(double*pi,bool**EncodeCk,double**encode,double**bigram,vector<int>(&text
   //   cout<<*iter<<" ";
 
   //update forward and backward map
-  forProp(forMap,pi,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
-  backProp(backMap,pi,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
+  forProp(forMap,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
+  backProp(backMap,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
   
 
  
-  //upadte gama
+  //upadte gamaO, gammaSum
+  double gammaSum[SSIZE];
+  double gammaO[SSIZE][SSIZE];
+  double gamma_per_c[SSIZE];
+  for(int i=0;i<SSIZE;i++)
+  {
+    gammaSum[i] = ZERO;
+    for(int j=0;j<SSIZE;j++)
+     {
+       gammaO[i][j] = ZERO;
+     }   
+  }
+
+
   for(int i=0;i<textInt.size();i++)
   {
      double sum = ZERO;
      for(int j=0;j<SSIZE;j++)
      {
-        if(forMap[j][i]<=0 && backMap[j][i]<=0)
-	{
-           gamma[j][i] = forMap[j][i] + backMap[j][i];//log(forMap*backMap)
-	   sum = sumlog(sum, forMap[j][i] + backMap[j][i]); 
+        if(forMap[j][i]>ZERO_thre && backMap[j][i]>ZERO_thre)
+	      {
+           gamma_per_c[j] = forMap[j][i] + backMap[j][i];//log(forMap*backMap)
+	         sum = sumlog(sum, forMap[j][i] + backMap[j][i]); 
         }
-	else
-	   gamma[j][i] = ZERO;
+	      else
+	         gamma_per_c[j] = ZERO;
      }
      for(int j=0;j<SSIZE;j++)
      {
-        if(gamma[j][i]<=0)//non-ZERO
+        if(gamma_per_c[j]>ZERO_thre)//non-ZERO
         {
-	//if(gamma[j][i]>=sum)
+	        //if(gamma[j][i]>=sum)
           // cout<<"("<<gamma[j][i]<<","<<sum<<")";
-           gamma[j][i] = gamma[j][i] - sum;//log(gamma/sum)
+          gamma_per_c[j] = gamma_per_c[j] - sum;//log(gamma/sum)
+          gammaSum[j] = sumlog(gammaSum[j],gamma_per_c[j]);
+          gammaO[textInt[i]][j] = sumlog(gammaO[textInt[i]][j],gamma_per_c[j]);
         }   
      }
+
   }
   
   //update epsilon sum
   double epsilonSum[SSIZE][SSIZE];
-  memset(epsilonSum,ZERO,sizeof(epsilonSum));
   double epsilonTemp[SSIZE][SSIZE];
-
+  for(int i=0;i<SSIZE;i++)
+  {
+    for(int j=0;j<SSIZE;j++)
+    {
+      epsilonSum[i][j] = ZERO;
+      epsilonTemp[i][j] = ZERO;
+    }
+  }  
+  
+  
   for(int i=1;i<textInt.size();i++)//i start from 1
   { 
-  memset(epsilonTemp,0,sizeof(epsilonTemp));
      double deno =ZERO;
      for(int j=0;j<SSIZE;j++)
      {
         for(int k=0;k<SSIZE;k++)
-	{
-	   if(forMap[j][i-1]<=0 && bigram[j][k]<=0 && encode[textInt[i]][k]<=0 && backMap[k][i]<=0)
-	   {   
-	      epsilonTemp[j][k] = forMap[j][i-1] + bigram[j][k] + encode[textInt[i]][k] + backMap[k][i];
-	      deno = sumlog(deno,epsilonTemp[j][k]);
-	   }
-	   else
-	      epsilonTemp[j][k] = ZERO;
-	}
+	      {
+	         if(forMap[j][i-1]>ZERO_thre && bigram[j][k]>ZERO_thre && encode[textInt[i]][k]>ZERO_thre && backMap[k][i]>ZERO_thre)
+	         {   
+	           epsilonTemp[j][k] = forMap[j][i-1] + bigram[j][k] + encode[textInt[i]][k] + backMap[k][i];
+	           deno = sumlog(deno,epsilonTemp[j][k]);
+	         }
+	         else
+	           epsilonTemp[j][k] = ZERO;
+	      }
      }
      for(int j=0;j<SSIZE;j++)
      {
         for(int k=0;k<SSIZE;k++)
-	{	
-	   if(epsilonTemp[j][k]<=0)//non-ZERO
-	   {
-	     epsilonTemp[j][k] = epsilonTemp[j][k] - deno;
-	     epsilonSum[j][k] = sumlog(epsilonSum[j][k],epsilonTemp[j][k]);
-	   }
-	}
+	      {	
+	         if(epsilonTemp[j][k]>ZERO_thre)//non-ZERO
+	         {
+	           epsilonTemp[j][k] = epsilonTemp[j][k] - deno;
+	           epsilonSum[j][k] = sumlog(epsilonSum[j][k],epsilonTemp[j][k]);
+	         }
+	      }
      }
   }
-  //update gama sum
-  double gammaSum[SSIZE];
-  memset(gammaSum,ZERO,sizeof(gammaSum));
-  for(int i=0;i<SSIZE;i++)
-  {
-     for(int j=0;j<textInt.size();j++)
-     {
-        if(gamma[i][j]<=0)
-           gammaSum[i] = sumlog(gammaSum[i],gamma[i][j]);
-     }
-  }
- // for(int i=0;i<SSIZE;i++)
- //    cout<<gammaSum[i]<<" ";
- // cout<<endl;
 
-  //update epsilon sum
-
-
-  //re update pi
-  for(int i=0;i<SSIZE;i++)
-  {
-     if(gamma[0][i]<=0)
-       pi[i] = gamma[0][i]-log(1);//denominator is number of samples each hidden variable????
-     else
-       pi[i] = ZERO;
-  
-  }
   //re update bigram
   for(int i=0;i<SSIZE;i++)
   {
      for(int j=0;j<SSIZE;j++)
      {
-        if(epsilonSum[i][j]<=0 && gammaSum[i]<=0)
-	  bigram[i][j] = epsilonSum[i][j]-gammaSum[i];
-	else
-	  bigram[i][j] = ZERO;
+        if(epsilonSum[i][j]>ZERO_thre && gammaSum[i]>ZERO_thre)
+	         bigram[i][j] = epsilonSum[i][j]-gammaSum[i];
+	      else
+	         bigram[i][j] = ZERO;
      }
   }
-  //re update encode
-  double gammaO[SSIZE][SSIZE];
-  memset(gammaO,ZERO,sizeof(gammaO));
-  for(int i=0;i<textInt.size();i++)
-  {
-     for(int j=0;j<SSIZE;j++)
-     {
-        if(gamma[j][i]<=0)
-	  gammaO[textInt[i]][j]=sumlog(gammaO[textInt[i]][j],gamma[j][i]);
-     }
-  }
+
+//update encode table
 
  for(int i=0;i<SSIZE;i++)
  {
     for(int j=0;j<SSIZE;j++)
     {
-    if(gammaO[j][i]<=0 && gammaSum[i]<=0)
+    if(gammaO[j][i]>ZERO_thre && gammaSum[i]>ZERO_thre)
       encode[j][i] = gammaO[j][i]-gammaSum[i];
     else
       encode[j][i] = ZERO;
     }
- }
- 
- 
+ } 
+
+  //normalize encode and bigram table
+  double deno_encode;
+  double deno_bigram;
+  for(int i=0;i<SSIZE;i++)
+  {
+    deno_encode = ZERO;
+    for(int j=0;j<SSIZE;j++)
+    {
+      deno_encode = sumlog(deno_encode,encode[i][j]);
+      deno_bigram = sumlog(deno_bigram,bigram[i][j]);
+    }
+    for(int j=0;j<SSIZE;j++)
+    {
+      if(encode[i][j]>ZERO_thre)
+        encode[i][j] = encode[i][j]-deno_encode;
+      if(bigram[i][j]>ZERO_thre)
+        bigram[i][j] = bigram[i][j]-deno_bigram;
+    }
+  }
   
-  //delete
-  
+  //delete  
   for(int i=0;i<SSIZE;i++)
   {
      delete[] forMap[i];
