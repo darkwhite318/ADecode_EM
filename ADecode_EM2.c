@@ -22,6 +22,7 @@ void forProp(double**,bool**,double**,double**,vector<int>(&));
 void backProp(double**,bool**,double**,double**,vector<int>(&));
 double sumlog(double,double);
 void EM(bool**,double**,double**,vector<int>(&));
+void updPath(int,double*,int*,double**,double**);
 
 int SSIZE;
 //const double ZERO = 10;//assigned a possitive number as the sybol of log(0)
@@ -37,7 +38,7 @@ int main(int argc,char* argv[])
     bool **EncodeCk;//query an encode table is the prob is 0 or not
     double ** encode;//encode table(change in each iteration)
     double ** bigram;//transition prob table
-    
+    int ** viterbiMap;
 
    //=======read in test file=========//
    ifstream textFile;
@@ -49,10 +50,6 @@ int main(int argc,char* argv[])
 
    //===parse text into a vector<int>==//
    parseText2Int(textInt,text);
-   
-  // vector<int>::iterator iter;
-  // for(iter= textInt.begin();iter!=textInt.end();iter++)
-  //   cout<<*iter<<" ";
    
    //===get # of all possible observation==//
    SSIZE = calcSSIZE(argv[1]);
@@ -76,7 +73,7 @@ int main(int argc,char* argv[])
    initBigram(bigram,EncodeCk,textInt);
   
  //======EM Algorithm======//
-  int iterNum = 2;
+  int iterNum = 10;
   for(int i=0;i<iterNum;i++)
   {
 
@@ -107,23 +104,95 @@ for(int i=0;i<SSIZE;i++)
 }
 
   //==Viterbi algorithm==//
+  viterbiMap = new int*[SSIZE];
+  for(int i=0;i<SSIZE;i++)
+      viterbiMap[i] = new int[textInt.size()-1];
   
+  int *optPath = new int[SSIZE];
+  double *viLast = new double[SSIZE];
+  for(int i=0;i<SSIZE;i++)
+    viLast[i] = encode[textInt[0]][i];
+  
+  for(int i=0;i<textInt.size()-1;i++)
+  {
+     updPath(textInt[i],viLast,optPath,bigram,encode);
+     for(int j=0;j<SSIZE;j++)
+     {
+        viterbiMap[j][i] = optPath[j];
+     }  
+  }
+  //==calculate bestPath==//
+  double highestScore = ZERO;
+  int startIdx =0;
+  for(int i=0;i<SSIZE;i++)
+  {
+    if(viLast[i]>highestScore)
+    {
+      highestScore = viLast[i];
+      startIdx = i;
+    }
+  }
+   int *textIntout = new int[textInt.size()];
+   textIntout[textInt.size()-1] = startIdx;
+   int bestIdx = startIdx;
+   int t = textInt.size()-2;
+   while(t>=0)
+   {
+      bestIdx = viterbiMap[bestIdx][t];
+      textIntout[t] = bestIdx;
+      t--;
+   }
+
+   ofstream outFile;
+   char fileLoc[40];
+   strcpy(fileLoc,"../");
+   strcat(fileLoc,argv[4]);  
+   //outFile.open(fileLoc);//not yet output file
 
   
-  //===delete pointer====//
+  //===validation===//
+   ifstream validFile;
+   textFile.open(argv[4]);
+   stringstream vaBuffer;
+   vaBuffer<<validFile.rdbuf();
+   string textV = vaBuffer.str(); 
+   validFile.close();
+
+   //===parse text into a vector<int>==//
+   vector<int>textIntV;
+   parseText2Int(textIntV,textV);
+   int correctNum=0;
+   for(int i=0;i<textIntV.size();i++)
+   {
+      if(textIntV[i] == textIntout[i])
+         correctNum++;
+   }
+   cout<<"accuracy:"<<double(correctNum)/double(textInt.size())<<endl;
+  
+  //===delete pointers====//
   for(int i=0;i<SSIZE;i++)
   {
      delete[] EncodeCk[i];
      delete[] encode[i];
      delete[] bigram[i];
+     delete[] viterbiMap;
   }
 
   delete[] EncodeCk;
   delete[] encode;
   delete[] bigram;
+  delete[] viterbiMap;
+  delete[] textIntout;
+  delete[] optPath;
+  delete[] viLast;
+
   EncodeCk = NULL;
   encode = NULL;
   bigram = NULL;
+  viterbiMap = NULL;
+  textIntout = NULL;
+  optPath = NULL;
+  viLast = NULL;
 
 
   return 0;
@@ -572,4 +641,30 @@ void EM(bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
   forMap =NULL;
   backMap =NULL;
 
+}
+void updPath(int nowIdx,double* viLast,int *viterbiLast,double**bigram,double**encode)
+{
+   double viMax,viTemp;
+   double viLastTemp[SSIZE];
+   int viIndex=0;
+   for(int j=0;j<SSIZE;j++)
+     {
+         viMax = ZERO;
+         viTemp = ZERO;
+        for(int k=0;k<SSIZE;k++)
+        {
+            viTemp = viLast[k] + bigram[k][j] + encode[nowIdx][j];
+            if(viTemp>viMax)
+            {
+              viMax = viTemp;
+              viIndex = k;
+            }
+        }
+        viLastTemp[j] = viMax;
+        viterbiLast[j] = viIndex;//viterbiMap[j][i-1] corresponds to the index of i-1 character at state j
+     }
+     for(int j=0;j<SSIZE;j++)
+     {
+        viLast[j] = viLastTemp[j];
+     }
 }
