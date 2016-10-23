@@ -38,11 +38,16 @@ int main(int argc,char* argv[])
     bool **EncodeCk;//query an encode table is the prob is 0 or not
     double ** encode;//encode table(change in each iteration)
     double ** bigram;//transition prob table
-    int ** viterbiMap;
+    int ** viterbiMap; 
 
    //=======read in test file=========//
    ifstream textFile;
    textFile.open(argv[2]);
+   if(!textFile)
+   {
+     cerr<<"Fail to open file "<<argv[2]<<endl;
+     return 0;
+   }
    stringstream buffer;
    buffer<<textFile.rdbuf();
    text = buffer.str(); 
@@ -73,14 +78,11 @@ int main(int argc,char* argv[])
    initBigram(bigram,EncodeCk,textInt);
   
  //======EM Algorithm======//
-  int iterNum = 50;
+  int iterNum = 2;
   for(int i=0;i<iterNum;i++)
-  {
-
     EM(EncodeCk,encode,bigram,textInt);
- 
-  }
- //=====output testing===//
+
+ //=====output testing===/
 
  cout<<endl;
  cout<<"encode:"<<endl;
@@ -104,34 +106,7 @@ for(int i=0;i<SSIZE;i++)
 }
 cout<<endl;
 
-// check normalize
-/*
-cout<<"check normalize: "<<endl;
-double enSum[SSIZE];
-double biSum[SSIZE];
-for(int i=0;i<SSIZE;i++)
-{
-  enSum[i] = ZERO;
-  biSum[i] = ZERO;
-}
-for(int i=0;i<SSIZE;i++)
-{
-  for(int j=0;j<SSIZE;j++)
-  {
-     enSum[i] = sumlog(enSum[i],encode[i][j]);
-     biSum[i] = sumlog(biSum[i],bigram[i][j]);
-  } 
-}
-for(int i=0;i<SSIZE;i++)
-   cout<<enSum[i]<<" ";
- cout<<endl;
-
- for(int i=0;i<SSIZE;i++)
-    cout<<biSum[i]<<" ";
-  cout<<endl;
-*/
-  //==Viterbi algorithm==//
-
+   //===//calculate viterbimap===//
 
   viterbiMap = new int*[SSIZE];
   for(int i=0;i<SSIZE;i++)
@@ -144,11 +119,9 @@ for(int i=0;i<SSIZE;i++)
   
   for(int i=0;i<textInt.size()-1;i++)
   {
-     updPath(textInt[i],viLast,optPath,bigram,encode);
+     updPath(textInt[i+1],viLast,optPath,bigram,encode);
      for(int j=0;j<SSIZE;j++)
-     {
-        viterbiMap[j][i] = optPath[j];
-     }  
+        viterbiMap[j][i] = optPath[j];  
   }
   
   //==calculate bestPath==//
@@ -180,18 +153,14 @@ for(int i=0;i<SSIZE;i++)
    ofstream outFile;
    string textOut = text;
    
-   char fileLoc[40];   
-   strcpy(fileLoc,"../");
-   strcat(fileLoc,argv[3]);  
-   
-   outFile.open(fileLoc);//not yet output file
-   
+   //char fileLoc[40];   
+   //strcpy(fileLoc,"../");
+   //strcat(fileLoc,argv[3]);  
+   outFile.open(argv[3]);
+  
    
    int iterIdx = 0;
-   int iter =0;
-   int rest;
 
-   iterIdx =0;
    while(iterIdx<textInt.size()){
       outFile<<textIntout[iterIdx];
       iterIdx++;
@@ -212,26 +181,30 @@ for(int i=0;i<SSIZE;i++)
    string textV = vaBuffer.str(); 
    validFile.close();
 
-   //===parse text into a vector<int>==//
+   //===parse valid text into a vector<int>==//
    vector<int>textIntV;
    parseText2Int(textIntV,textV);
    int correctNum=0;
+   int mycorrectSPACENum =0;
    int correctSPACENum =0;
    cout<<"SSIZE:"<<SSIZE<<endl;
    cout<<"input size: "<<textInt.size()<<endl;
    cout<<"valid size: "<<textIntV.size()<<endl;
    for(int i=0;i<textIntV.size();i++)
    {
+      if(textIntV[i] == 36)
+         correctSPACENum++;
       if(textIntV[i] == textIntout[i])
       {
          correctNum++;
          if(textIntV[i] == 36)
-            correctSPACENum++;
+            mycorrectSPACENum++;
       }
 
    }
    cout<<"accuracy:"<<correctNum<<"/"<<textInt.size()<<"="<<double(correctNum)/double(textInt.size())<<endl;
-   cout<<"correctSPACENum:"<<correctSPACENum<<endl
+   cout<<"mycorrectSPACENum:"<<mycorrectSPACENum<<endl;
+   cout<<"correctSPACENum:"<<correctSPACENum<<endl;
   
   //===delete pointers====//
   for(int i=0;i<SSIZE;i++)
@@ -357,16 +330,12 @@ void initEncode(char* fileName,bool**EncodeCk,double**encode)
            if(!EncodeCk[j][i])
  	        {
               encode[j][i] = ZERO;
-              //cout<<"0"<<" ";
 	        }
            else
 	         {
-	     // cout<<"1"<<" ";
               encode[j][i] = -log(denominator[i]);
            }
-	//cout<<encode[j][i]<<" ";
 	      }
-	//cout<<endl;
      }
    }
 }
@@ -376,7 +345,6 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
   
   //use text to vote for initial bigram
   double vote[SSIZE][SSIZE];
-  //memset(vote,0,sizeof(vote));
   for(int i=0;i<SSIZE;i++)
   {
      for(int j=0;j<SSIZE;j++)
@@ -387,7 +355,6 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
 
  for(int i=1;i<textInt.size();i++)
   {
-  //cout<<textInt[i]<<" ";
      for(int j=0;j<SSIZE;j++)
      {
         if(EncodeCk[textInt[i-1]][j])
@@ -423,9 +390,7 @@ void initBigram(double**bigram,bool**EncodeCk,vector<int>(&textInt))
 
 }
 
-//forward & backwark propagate
-//forward:ck = 0; pi = initial state prob
-//backward:ck =1; pi = a vector of 0.
+
 void forProp(double**Map,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
 {
 
@@ -447,22 +412,22 @@ double alpha;
       {
          if(!EncodeCk[textInt[i]][j])
 	          Map[j][i] = ZERO;
-	    else
-	    {
-	    double tempSum = ZERO;
-	    for(int k=0;k<SSIZE;k++)	    
-      {
-	       alpha = Map[k][i-1] + bigram[k][j];
-		     if(Map[k][i-1]<ZERO_thre || bigram[k][j]<ZERO_thre)
-		       alpha = ZERO;
-	       tempSum = sumlog(tempSum,alpha);
-	   }
-	   if(tempSum<ZERO_thre)
-	      Map[j][i] = ZERO;
-	   else
-	      Map[j][i] = tempSum + encode[textInt[i]][j];
+	       else
+	      {
+	         double tempSum = ZERO;
+	         for(int k=0;k<SSIZE;k++)	    
+           {
+	            alpha = Map[k][i-1] + bigram[k][j];
+		          if(Map[k][i-1]<ZERO_thre || bigram[k][j]<ZERO_thre)
+		            alpha = ZERO;
+	            tempSum = sumlog(tempSum,alpha);
+	         }
+	         if(tempSum<ZERO_thre)
+	            Map[j][i] = ZERO;
+	         else
+	           Map[j][i] = tempSum + encode[textInt[i]][j];
 	    //cout<<"("<<j<<","<<i<<")"<<Map[j][i];
-	 }
+	      }
       }
       //cout<<endl;
    }
@@ -471,7 +436,7 @@ double alpha;
 
 
 void backProp(double**Map,bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
-{//not yet done
+{
 
 //initialize
       for(int i=0;i<SSIZE;i++)
@@ -526,7 +491,7 @@ double sumlog(double p1,double p2)
          return p1;
       else
      {
-	      if((p1-p2) > 6)//test if this criteria rail
+	      if((p1-p2) > 6)//test if this criteria fail
 	        return p1;
 	      else if((p2-p1) > 6)
 	        return p2;
@@ -554,8 +519,8 @@ void EM(bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
   }
 
   //update forward and backward map
-  forProp(forMap,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
-  backProp(backMap,EncodeCk,encode,bigram,textInt);//garentee no element bigger than 0 except ZERO
+  forProp(forMap,EncodeCk,encode,bigram,textInt);
+  backProp(backMap,EncodeCk,encode,bigram,textInt);
   
 
  
@@ -573,7 +538,7 @@ void EM(bool**EncodeCk,double**encode,double**bigram,vector<int>(&textInt))
   }
 
 
-  for(int i=0;i<textInt.size();i++)
+  for(int i=0;i<textInt.size()-1;i++)
   {
      double sum = ZERO;
      for(int j=0;j<SSIZE;j++)
@@ -711,7 +676,10 @@ void updPath(int nowIdx,double* viLast,int *viterbiLast,double**bigram,double**e
          viTemp = ZERO;
         for(int k=0;k<SSIZE;k++)
         {
-            viTemp = viLast[k] + bigram[k][j] + encode[nowIdx][j];
+            if(encode[nowIdx][j]>ZERO_thre && viLast[k]>ZERO_thre && bigram[k][j]>ZERO_thre)
+               viTemp = viLast[k] + bigram[k][j] + encode[nowIdx][j];
+            else
+               viTemp = ZERO;
             if(viTemp>viMax)
             {
               viMax = viTemp;
